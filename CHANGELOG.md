@@ -1,4 +1,18 @@
 # CHANGELOG
+## 3.15.0 (March 30, 2021)
+### Components
+#### Added
+* Added: Date and date picker web components now support `multiple` date selection.
+
+## 3.14.0 (March 25, 2021)
+### Components
+#### Added
+* Added: Search input component to provide users with the ability input words or phrases and locate relevant content.
+* Added: Accordion now supports the class `-truncated` to truncate long accordion titles.
+### Documentation
+#### Changed
+* Changed: Chi GitHub links have been updated to reflect our new repository URL.
+
 ## 3.13.0 (March 18, 2021)
 ### Components
 #### Added

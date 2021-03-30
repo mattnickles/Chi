@@ -246,7 +246,8 @@
         ".test-active",
         ".test-combined",
         ".test-input-combined-icon",
-        ".test-disabled"
+        ".test-disabled",
+        ".test-multiple"
       ],
       "selectorExpansion": true,
       "misMatchThreshold": 0,
@@ -402,6 +403,30 @@
         ".test-info-max-200",
         ".test-warning-max-200",
         ".test-success-max-200"
+      ],
+      "selectorExpansion": true,
+      "misMatchThreshold": 0,
+      "requireSameDimensions": true
+    },
+    {
+      "label": "input-search",
+      "cookiePath": "",
+      "url": "http://localhost:8000/tests/custom-elements/search-input.html",
+      "referenceUrl": "",
+      "readyEvent": "",
+      "readySelector": "",
+      "delay": 0,
+      "hideSelectors": [],
+      "removeSelectors": [],
+      "hoverSelector": "",
+      "clickSelector": "",
+      "postInteractionWait": "",
+      "selectors": [
+        ".test-default",
+        ".test-sm",
+        ".test-md",
+        ".test-lg",
+        ".test-xl"
       ],
       "selectorExpansion": true,
       "misMatchThreshold": 0,
