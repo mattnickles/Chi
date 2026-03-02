@@ -1,4 +1,4 @@
-import Popper from 'popper.js';
+import {computePosition, flip, shift, offset} from '@floating-ui/dom';
 import {Component} from "../core/component";
 import {Util} from "../core/util.js";
 import {KEYS} from  '../constants/constants';
@@ -22,8 +22,7 @@ class Tooltip extends Component {
     super(elem, Util.extend(DEFAULT_CONFIG, config));
     this._tooltipElem = null;
     this._tooltipContent = null;
-    this._popper = null;
-    this._popperData = null;
+    this._floatingCleanup = null;
     this._preAnimationTransformStyle = null;
     this._postAnimationTransformStyle = null;
     this._hovered = false;
@@ -90,15 +89,19 @@ class Tooltip extends Component {
     Util.addClass(this._tooltipElem, CLASS_ACTIVE);
     const transition = this._tooltipElem.style.transition;
     this._tooltipElem.style.transition = 'none';
-    this._tooltipElem.style.transform = this._preAnimationTransformStyle;
     this._tooltipElem.style.opacity = '0';
     let self = this;
-    window.requestAnimationFrame(function(){
-      self._tooltipElem.style.transition = transition;
-      self._tooltipElem.style.transform = self._postAnimationTransformStyle;
-      self._tooltipElem.style.opacity = '1';
-      self._tooltipElem.setAttribute('aria-hidden', 'false');
-      self._preventOverflow();
+
+    // Re-compute position before showing, then animate
+    this._updatePosition().then(function() {
+      self._tooltipElem.style.transform = self._preAnimationTransformStyle;
+      window.requestAnimationFrame(function(){
+        self._tooltipElem.style.transition = transition;
+        self._tooltipElem.style.transform = self._postAnimationTransformStyle;
+        self._tooltipElem.style.opacity = '1';
+        self._tooltipElem.setAttribute('aria-hidden', 'false');
+        self._preventOverflow();
+      });
     });
     this._elem.dispatchEvent(
       Util.createEvent(EVENTS.show)
@@ -135,37 +138,25 @@ class Tooltip extends Component {
 
     let self = this;
 
-    this._savePopperData = function (data) {
-      self._popperData = data;
-      self._preAnimationTransformStyle = null;
-      self._postAnimationTransformStyle = data.styles.transform;
-      if (data.placement.indexOf("top") === 0) {
-        self._preAnimationTransformStyle = `translate3d(${data.popper.left}px, ${data.popper.top}px, 0px)`;
-      } else if (data.placement.indexOf("right") === 0) {
-        self._preAnimationTransformStyle = `translate3d(${data.popper.left}px, ${data.popper.top}px, 0px)`;
-      } else if (data.placement.indexOf("bottom") === 0) {
-        self._preAnimationTransformStyle = `translate3d(${data.popper.left}px, ${data.popper.top}px, 0px)`;
-      } else if (data.placement.indexOf("left") === 0) {
-        self._preAnimationTransformStyle = `translate3d(${data.popper.left}px, ${data.popper.top}px, 0px)`;
-      } else {
-        self._preAnimationTransformStyle = data.styles.transform;
-      }
-      return data;
+    this._updatePosition = function () {
+      return computePosition(self._config.parent, self._tooltipElem, {
+        placement: self._config.position,
+        middleware: [offset(8), flip(), shift()],
+      }).then(({x, y}) => {
+        Object.assign(self._tooltipElem.style, {
+          position: 'absolute',
+          left: `${x}px`,
+          top: `${y}px`,
+        });
+
+        // Transforms are relative offsets — left/top handles absolute positioning.
+        // Tooltip uses opacity-only animation, so no directional offset needed.
+        self._postAnimationTransformStyle = 'none';
+        self._preAnimationTransformStyle = 'none';
+      });
     };
 
-    this._popper = new Popper (this._config.parent, this._tooltipElem, {
-      modifiers: {
-        applyStyle: {enabled: true},
-        offset: {offset: '0px,8px'},
-        applyChiStyle: {
-          enabled: true,
-          fn: this._savePopperData,
-          order: 875 // to run after popper applyStyle modifier. We need data.styles to be filled.
-        },
-      },
-      removeOnDestroy: true,
-      placement: this._config.position
-    });
+    this._updatePosition();
   }
 
   _preventOverflow() {
@@ -185,11 +176,13 @@ class Tooltip extends Component {
   }
 
   dispose() {
+    if (this._tooltipElem && this._tooltipElem.parentNode) {
+      this._tooltipElem.parentNode.removeChild(this._tooltipElem);
+    }
     this._tooltipElem = null;
     this._tooltipContent = null;
-    this._popper.destroy();
+    this._floatingCleanup = null;
     this._config = null;
-    this._popperData = null;
     this._preAnimationTransformStyle = null;
     this._postAnimationTransformStyle = null;
     this._removeEventHandlers();
