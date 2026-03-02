@@ -21,7 +21,38 @@
   z-index: $zindex-popover;
 
   &.-animated {
-    transition: opacity 0.2s, transform 0.2s;
+    // CSS @keyframes handle show/hide animations via data-state attribute.
+    // No CSS transition needed — animations are driven by @keyframes.
+
+    &[data-state='open'] {
+      &.chi-popover--top { animation: chi-popover-slide-top-in 0.2s ease forwards; }
+      &.chi-popover--top-start { animation: chi-popover-slide-top-in 0.2s ease forwards; }
+      &.chi-popover--top-end { animation: chi-popover-slide-top-in 0.2s ease forwards; }
+      &.chi-popover--right { animation: chi-popover-slide-right-in 0.2s ease forwards; }
+      &.chi-popover--right-start { animation: chi-popover-slide-right-in 0.2s ease forwards; }
+      &.chi-popover--right-end { animation: chi-popover-slide-right-in 0.2s ease forwards; }
+      &.chi-popover--bottom { animation: chi-popover-slide-bottom-in 0.2s ease forwards; }
+      &.chi-popover--bottom-start { animation: chi-popover-slide-bottom-in 0.2s ease forwards; }
+      &.chi-popover--bottom-end { animation: chi-popover-slide-bottom-in 0.2s ease forwards; }
+      &.chi-popover--left { animation: chi-popover-slide-left-in 0.2s ease forwards; }
+      &.chi-popover--left-start { animation: chi-popover-slide-left-in 0.2s ease forwards; }
+      &.chi-popover--left-end { animation: chi-popover-slide-left-in 0.2s ease forwards; }
+    }
+
+    &[data-state='closed'] {
+      &.chi-popover--top { animation: chi-popover-slide-top-out 0.2s ease forwards; }
+      &.chi-popover--top-start { animation: chi-popover-slide-top-out 0.2s ease forwards; }
+      &.chi-popover--top-end { animation: chi-popover-slide-top-out 0.2s ease forwards; }
+      &.chi-popover--right { animation: chi-popover-slide-right-out 0.2s ease forwards; }
+      &.chi-popover--right-start { animation: chi-popover-slide-right-out 0.2s ease forwards; }
+      &.chi-popover--right-end { animation: chi-popover-slide-right-out 0.2s ease forwards; }
+      &.chi-popover--bottom { animation: chi-popover-slide-bottom-out 0.2s ease forwards; }
+      &.chi-popover--bottom-start { animation: chi-popover-slide-bottom-out 0.2s ease forwards; }
+      &.chi-popover--bottom-end { animation: chi-popover-slide-bottom-out 0.2s ease forwards; }
+      &.chi-popover--left { animation: chi-popover-slide-left-out 0.2s ease forwards; }
+      &.chi-popover--left-start { animation: chi-popover-slide-left-out 0.2s ease forwards; }
+      &.chi-popover--left-end { animation: chi-popover-slide-left-out 0.2s ease forwards; }
+    }
   }
 
   &.-active {
@@ -118,98 +149,81 @@
     }
   }
 
+  // Arrow — positioned by Floating UI's arrow() middleware via inline styles.
+  // The arrow div acts as a filter container; its ::before pseudo-element is
+  // the visible triangle (a rotated square clipped by clip-path).
+  //
+  // Clipping strategy:
+  //   1. ::before is a square rotated 45° → visual diamond shape
+  //   2. clip-path (set via --chi-arrow-clip CSS variable from floating.ts)
+  //      removes the inner half that overlaps the popover body
+
   & .chi-arrow,
   & .chi-popover__arrow {
     display: block;
     height: $popover-arrow-size;
     margin: 0;
+    pointer-events: none;
     position: absolute;
     width: $popover-arrow-size;
 
-    &::after {
-      border-color: $color-border-white;
-      border-style: solid;
-      border-width: calc(#{$popover-arrow-size} / 2);
+    &::before {
+      background: $popover-background-color;
+      clip-path: var(--chi-arrow-clip, polygon(100% 0, 0 100%, 100% 100%));
       content: '';
       display: block;
+      height: 100%;
       left: 0;
       position: absolute;
       top: 0;
       transform: rotate(45deg);
+      width: 100%;
     }
   }
 
-  &:not(.-no-arrow) {
-    &.chi-popover--top:not([x-placement='bottom']),
-    &[x-placement^='top'] {
-      margin-bottom: calc(#{$popover-arrow-size} + 0.25rem);
-
-      .chi-arrow,
-      .chi-popover__arrow {
-        bottom: calc((#{$popover-arrow-size} / 2) * -1);
-        left: calc(50% - (#{$popover-arrow-size} / 2));
-      }
-
-      .chi-arrow::after,
-      .chi-popover__arrow::after {
-        border-left-color: transparent;
-        border-top-color: transparent;
-        box-shadow: 3px 3px 3px 0 rgba(0, 0, 0, 0.12);
-      }
+  // CSS-only fallback arrow positioning for static / documentation usage.
+  // When Floating UI runs, its inline styles (higher specificity) override these.
+  &.chi-popover--top,
+  &.chi-popover--top-start,
+  &.chi-popover--top-end {
+    .chi-arrow,
+    .chi-popover__arrow {
+      bottom: calc(#{$popover-arrow-size} / -2);
+      left: calc(50% - #{$popover-arrow-size} / 2);
+      --chi-arrow-clip: polygon(100% 0, 0 100%, 100% 100%);
     }
+  }
 
-    &.chi-popover--right:not([x-placement='left']),
-    &[x-placement^='right'] {
-      margin-left: calc(#{$popover-arrow-size} + 0.25rem);
-
-      .chi-arrow,
-      .chi-popover__arrow {
-        left: calc((#{$popover-arrow-size} / 2) * -1);
-        top: calc(50% - (#{$popover-arrow-size} / 2));
-      }
-
-      .chi-arrow::after,
-      .chi-popover__arrow::after {
-        border-right-color: transparent;
-        border-top-color: transparent;
-        box-shadow: -3px 3px 7px rgba(0, 0, 0, 0.1);
-      }
+  &.chi-popover--bottom,
+  &.chi-popover--bottom-start,
+  &.chi-popover--bottom-end {
+    .chi-arrow,
+    .chi-popover__arrow {
+      top: calc(#{$popover-arrow-size} / -2);
+      left: calc(50% - #{$popover-arrow-size} / 2);
+      --chi-arrow-clip: polygon(0 0, 100% 0, 0 100%);
     }
+  }
 
-    &.chi-popover--bottom:not([x-placement='top']),
-    &[x-placement^='bottom'] {
-      margin-top: calc(#{$popover-arrow-size} + 0.25rem);
-
-      .chi-arrow,
-      .chi-popover__arrow {
-        left: calc(50% - (#{$popover-arrow-size} / 2));
-        top: calc((#{$popover-arrow-size} / 2) * -1);
-      }
-
-      .chi-arrow::after,
-      .chi-popover__arrow::after {
-        border-bottom-color: transparent;
-        border-right-color: transparent;
-        box-shadow: -3px -3px 7px rgba(0, 0, 0, 0.1);
-      }
+  &.chi-popover--right,
+  &.chi-popover--right-start,
+  &.chi-popover--right-end {
+    .chi-arrow,
+    .chi-popover__arrow {
+      left: calc(#{$popover-arrow-size} / -2);
+      top: calc(50% - #{$popover-arrow-size} / 2);
+      --chi-arrow-clip: polygon(0 0, 0 100%, 100% 100%);
     }
+  }
 
-    &.chi-popover--left:not([x-placement='right']),
-    &[x-placement^='left'] {
-      margin-right: calc(#{$popover-arrow-size} + 0.25rem);
-
-      .chi-arrow,
-      .chi-popover__arrow {
-        right: calc((#{$popover-arrow-size} / 2) * -1);
-        top: calc(50% - (#{$popover-arrow-size} / 2));
-      }
-
-      .chi-arrow::after,
-      .chi-popover__arrow::after {
-        border-bottom-color: transparent;
-        border-left-color: transparent;
-        box-shadow: 3px -3px 7px rgba(0, 0, 0, 0.1);
-      }
+  &.chi-popover--left,
+  &.chi-popover--left-start,
+  &.chi-popover--left-end {
+    .chi-arrow,
+    .chi-popover__arrow {
+      right: calc(#{$popover-arrow-size} / -2);
+      top: calc(50% - #{$popover-arrow-size} / 2);
+      --chi-arrow-clip: polygon(0 0, 100% 0, 100% 100%);
     }
   }
 
@@ -272,6 +286,10 @@
         &,
         .chi-icon {
           color: $popover-modal-close-icon-color;
+        }
+
+        &:hover {
+          background: none;
         }
       }
     }
@@ -339,73 +357,124 @@
         .chi-icon {
           color: $popover-gradient-close-button-icon-color;
         }
+
+        &:hover {
+          background: none;
+        }
       }
     }
 
-    // Position offsets for left/right start/end placements only
-    &[x-placement='right-start'],
-    &[x-placement='left-start'] {
-      top: -$popover-gradient-arrow-offset !important;
+    // Position offsets for left/right start/end placements only.
+    // Uses margin-top (not top) to avoid overriding Floating UI's
+    // computed inline top value.
+    &.chi-popover--right-start,
+    &.chi-popover--left-start {
+      margin-top: -$popover-gradient-arrow-offset;
     }
 
-    &[x-placement='right-end'],
-    &[x-placement='left-end'] {
-      top: $popover-gradient-arrow-offset !important;
+    &.chi-popover--right-end,
+    &.chi-popover--left-end {
+      margin-top: $popover-gradient-arrow-offset;
     }
 
     /*
-    Arrow styles
+    Arrow gradient styles — override the arrow background color
+    to match the gradient header/edges per placement direction.
+    Floating UI handles all positioning; CSS only sets the color.
     */
 
-    // Right side arrow styling
-    &[x-placement='right'] {
-      .chi-popover__arrow::after {
-        border-color: $popover-gradient-right-arrow-color;
+    // Right side: arrow matches right edge of gradient header
+    &.chi-popover--right,
+    &.chi-popover--right-start,
+    &.chi-popover--right-end {
+      .chi-arrow::before,
+      .chi-popover__arrow::before {
+        background: $popover-gradient-right-arrow-color;
       }
     }
 
-    &[x-placement='right-start'] {
-      .chi-popover__arrow::after {
-        top: $popover-gradient-arrow-offset;
-        border-color: $popover-gradient-right-arrow-color;
+    // Left side: arrow matches left edge of gradient header
+    &.chi-popover--left,
+    &.chi-popover--left-start,
+    &.chi-popover--left-end {
+      .chi-arrow::before,
+      .chi-popover__arrow::before {
+        background: $popover-gradient-left-arrow-color;
       }
     }
 
-    &[x-placement='right-end'] {
-      .chi-popover__arrow::after {
-        top: auto;
-        bottom: $popover-gradient-arrow-offset;
+    // Bottom side: arrow uses mixed color (blend of left + right)
+    &.chi-popover--bottom,
+    &.chi-popover--bottom-start,
+    &.chi-popover--bottom-end {
+      .chi-arrow::before,
+      .chi-popover__arrow::before {
+        background: $popover-gradient-arrow-mixed-color;
       }
     }
 
-    // Left side arrow styling
-    &[x-placement='left'] {
-      .chi-popover__arrow::after {
-        border-color: $popover-gradient-left-arrow-color;
+    // Align arrow to gradient for gradient use case
+    &.chi-popover--left,
+    &.chi-popover--right {
+      .chi-arrow,
+      .chi-popover__arrow {
+        margin-top: -1.75rem;
       }
     }
 
-    &[x-placement='left-start'] {
-      .chi-popover__arrow::after {
-        top: $popover-gradient-arrow-offset;
-        border-color: $popover-gradient-left-arrow-color;
-      }
-    }
-
-    &[x-placement='left-end'] {
-      .chi-popover__arrow::after {
-        top: auto;
-        bottom: $popover-gradient-arrow-offset;
-      }
-    }
-
-    // Bottom side arrow style with mixed color
-    &[x-placement^='bottom'] {
-      .chi-popover__arrow::after {
-        border-color: $popover-gradient-arrow-mixed-color;
+    &.chi-popover--left-start,
+    &.chi-popover--right-start {
+      .chi-arrow,
+      .chi-popover__arrow {
+        margin-top: 0.75rem;
       }
     }
   }
+}
+
+// @keyframes for popover show/hide animations.
+// Uses transform: none in the final keyframe (not translateY(0))
+// to avoid creating a CSS containing block that would trap nested
+// position: fixed elements.
+
+@keyframes chi-popover-slide-top-in {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes chi-popover-slide-top-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(20px); }
+}
+
+@keyframes chi-popover-slide-bottom-in {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes chi-popover-slide-bottom-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(-20px); }
+}
+
+@keyframes chi-popover-slide-right-in {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes chi-popover-slide-right-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateX(-20px); }
+}
+
+@keyframes chi-popover-slide-left-in {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes chi-popover-slide-left-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateX(20px); }
 }
 
 chi-popover {

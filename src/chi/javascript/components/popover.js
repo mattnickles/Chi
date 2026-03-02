@@ -1,6 +1,6 @@
 import { Util } from '../core/util.js';
 import { Component } from '../core/component';
-import Popper from 'popper.js';
+import { computePosition, flip, shift, offset, arrow as arrowMiddleware } from '@floating-ui/dom';
 import { chi } from '../core/chi';
 
 const COMPONENT_SELECTOR = '[data-popover-content]';
@@ -32,8 +32,7 @@ class Popover extends Component {
     super(elem, Util.extend(DEFAULT_CONFIG, config));
 
     this._popoverElem = null;
-    this._popper = null;
-    this._popperData = null;
+    this._floatingCleanup = null;
     this._preAnimationTransformStyle = null;
     this._postAnimationTransformStyle = null;
     this._shown = false;
@@ -112,28 +111,28 @@ class Popover extends Component {
     const transition = this._popoverElem.style.transition;
     self._popoverElem.style.transition = 'none';
     Util.addClass(self._popoverElem, chi.classes.TRANSITIONING);
-    //Because this popper method is asynchronous, cannot be done in step 1 of
-    // animation, as it will be executed between step 1 and step 2.
-    self.resetPosition();
 
-    Util.threeStepsAnimation(
-      function() {
-        self._popoverElem.style.transform = self._preAnimationTransformStyle;
-      },
-      function() {
-        Util.addClass(self._popoverElem, chi.classes.ACTIVE);
-        self._popoverElem.style.transition = transition;
-        self._popoverElem.style.transform = self._postAnimationTransformStyle;
-      },
-      function() {
-        Util.removeClass(self._popoverElem, chi.classes.TRANSITIONING);
-        self._popoverElem.setAttribute('aria-hidden', 'false');
-        self._popoverElem.dispatchEvent(
-          Util.createEvent(EVENTS.shown)
-        );
-      },
-      TRANSITION_DURATION
-    );
+    // computePosition is async — wait for position to be computed before animating
+    self._updatePosition().then(function() {
+      Util.threeStepsAnimation(
+        function() {
+          self._popoverElem.style.transform = self._preAnimationTransformStyle;
+        },
+        function() {
+          Util.addClass(self._popoverElem, chi.classes.ACTIVE);
+          self._popoverElem.style.transition = transition;
+          self._popoverElem.style.transform = self._postAnimationTransformStyle;
+        },
+        function() {
+          Util.removeClass(self._popoverElem, chi.classes.TRANSITIONING);
+          self._popoverElem.setAttribute('aria-hidden', 'false');
+          self._popoverElem.dispatchEvent(
+            Util.createEvent(EVENTS.shown)
+          );
+        },
+        TRANSITION_DURATION
+      );
+    });
   }
 
   hide(force) {
@@ -197,7 +196,7 @@ class Popover extends Component {
   }
 
   resetPosition() {
-    this._popper.update();
+    this._updatePosition();
   }
 
   _configurePopover() {
@@ -205,7 +204,7 @@ class Popover extends Component {
     this._configurePopoverClasses();
     this._configurePopoverContent();
     this._configurePopoverIdAria();
-    this._configurePopoverPopper();
+    this._configurePopoverFloating();
   }
 
   _configurePopoverElement() {
@@ -268,53 +267,102 @@ class Popover extends Component {
     this._popoverElem.setAttribute('aria-modal', 'true');
   }
 
-  _configurePopoverPopper() {
+  _configurePopoverFloating() {
     const self = this;
-    this._savePopperData = function(data) {
-      self._popperData = data;
-      self._preAnimationTransformStyle = null;
-      self._postAnimationTransformStyle = data.styles.transform;
-      if (data.placement.indexOf('top') === 0) {
-        self._preAnimationTransformStyle = `translate3d(${
-          data.popper.left
-        }px, ${data.popper.top + 20}px, 0px)`;
-      } else if (data.placement.indexOf('right') === 0) {
-        self._preAnimationTransformStyle = `translate3d(${data.popper.left -
-          20}px, ${data.popper.top}px, 0px)`;
-      } else if (data.placement.indexOf('bottom') === 0) {
-        self._preAnimationTransformStyle = `translate3d(${
-          data.popper.left
-        }px, ${data.popper.top - 20}px, 0px)`;
-      } else if (data.placement.indexOf('left') === 0) {
-        self._preAnimationTransformStyle = `translate3d(${data.popper.left +
-          20}px, ${data.popper.top}px, 0px)`;
-      } else {
-        self._preAnimationTransformStyle = data.styles.transform;
-      }
-      return data;
+    const arrowEl = this._config.arrow
+      ? this._popoverElem.querySelector('.chi-popover__arrow')
+      : null;
+
+    const OPPOSITE_SIDE = {
+      top: 'bottom',
+      right: 'left',
+      bottom: 'top',
+      left: 'right',
     };
 
-    this._popper = new Popper(this._config.parent, this._popoverElem, {
-      modifiers: {
-        applyStyle: { enabled: true },
-        applyChiStyle: {
-          enabled: true,
-          fn: this._savePopperData,
-          // Set order to run after popper applyStyle modifier
-          // as we need data.styles to be filled.
-          order: 875
-        },
-        arrow: {
-          element: '.chi-popover__arrow',
-          enabled: this._config.arrow
-        },
-        preventOverflow: {
-          boundariesElement: "window"
-        },
-      },
-      removeOnDestroy: true,
-      placement: this._config.position
-    });
+    // Clip-path polygons for each arrow direction.
+    // Applied to ::before via --chi-arrow-clip CSS custom property.
+    const ARROW_CLIP_PATHS = {
+      top: 'polygon(100% 0, 0 100%, 100% 100%)',
+      bottom: 'polygon(0 0, 100% 0, 0 100%)',
+      left: 'polygon(0 0, 100% 0, 100% 100%)',
+      right: 'polygon(0 0, 0 100%, 100% 100%)',
+    };
+
+    this._updatePosition = function() {
+      const middleware = [
+        offset(self._config.arrow ? 12 : 0),
+        flip(),
+        shift(),
+      ];
+
+      if (arrowEl) {
+        middleware.push(arrowMiddleware({ element: arrowEl }));
+      }
+
+      return computePosition(self._config.parent, self._popoverElem, {
+        placement: self._config.position,
+        middleware: middleware,
+      }).then(({x, y, placement, middlewareData}) => {
+        Object.assign(self._popoverElem.style, {
+          position: 'absolute',
+          left: `${x}px`,
+          top: `${y}px`,
+        });
+
+        const basePlacement = placement.split('-')[0];
+
+        // Update placement class on popover for CSS arrow styling
+        ['top', 'bottom', 'left', 'right'].forEach(function(side) {
+          Util.removeClass(self._popoverElem, 'chi-popover--' + side);
+        });
+        Util.addClass(self._popoverElem, 'chi-popover--' + basePlacement);
+
+        // Apply arrow positioning
+        if (arrowEl && middlewareData.arrow) {
+          const {x: arrowX, y: arrowY} = middlewareData.arrow;
+          const staticSide = OPPOSITE_SIDE[basePlacement];
+
+          // Measure arrow size for static-side offset
+          const arrowLen = (basePlacement === 'top' || basePlacement === 'bottom')
+            ? arrowEl.offsetHeight
+            : arrowEl.offsetWidth;
+
+          Object.assign(arrowEl.style, {
+            left: arrowX != null ? `${arrowX}px` : '',
+            top: arrowY != null ? `${arrowY}px` : '',
+            right: '',
+            bottom: '',
+            [staticSide]: `${-(arrowLen / 2)}px`,
+          });
+
+          // Set clip-path direction on arrow ::before via CSS custom property
+          arrowEl.style.setProperty(
+            '--chi-arrow-clip',
+            ARROW_CLIP_PATHS[basePlacement] || 'none'
+          );
+        }
+
+        // Animation transforms are RELATIVE offsets — left/top handles absolute positioning.
+        // Post = final position (no additional transform needed).
+        // Pre = 20px offset in the incoming direction for slide-in animation.
+        self._postAnimationTransformStyle = 'none';
+        if (basePlacement === 'top') {
+          self._preAnimationTransformStyle = 'translate3d(0, 20px, 0)';
+        } else if (basePlacement === 'right') {
+          self._preAnimationTransformStyle = 'translate3d(-20px, 0, 0)';
+        } else if (basePlacement === 'bottom') {
+          self._preAnimationTransformStyle = 'translate3d(0, -20px, 0)';
+        } else if (basePlacement === 'left') {
+          self._preAnimationTransformStyle = 'translate3d(20px, 0, 0)';
+        } else {
+          self._preAnimationTransformStyle = 'none';
+        }
+      });
+    };
+
+    // Initial position computation
+    this._updatePosition();
   }
 
   setContent(content) {
@@ -328,10 +376,12 @@ class Popover extends Component {
 
   dispose() {
     this._removeEventHandlers();
+    if (this._popoverElem && this._popoverElem.parentNode) {
+      this._popoverElem.parentNode.removeChild(this._popoverElem);
+    }
     this._popoverElem = null;
-    this._popper.destroy();
+    this._floatingCleanup = null;
     this._config = null;
-    this._popperData = null;
     this._preAnimationTransformStyle = null;
     this._postAnimationTransformStyle = null;
 

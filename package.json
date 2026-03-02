@@ -32,7 +32,8 @@
   "dependencies": {
     "@centurylink/chi-custom-elements": "1.55.0",
     "@centurylink/chi-documentation": "1.63.1",
-    "@centurylink/chi-vue": "3.32.1"
+    "@centurylink/chi-vue": "3.32.1",
+    "@floating-ui/dom": "^1.7.5"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.27.2",
@@ -51,7 +52,6 @@
     "express-rate-limit": "^7.5.1",
     "normalize.css": "^8.0.1",
     "ora": "^8.2.0",
-    "popper.js": "^1.16.1",
     "postcss-svg": "^3.0.0",
     "pug": "^3.0.3",
     "rollup-plugin-terser": "^7.0.2",

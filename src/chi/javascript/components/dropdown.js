@@ -1,6 +1,6 @@
 import {Component} from "../core/component";
 import {Util} from "../core/util.js";
-import Popper from 'popper.js';
+import {computePosition, flip, shift} from '@floating-ui/dom';
 import {CLASS_HAS_ACTIVE} from "./tab";
 
 const CLASS_ACTIVE = "-active";
@@ -130,30 +130,42 @@ class Dropdown extends Component {
     window.requestAnimationFrame(function() {
       let dropdownPosition = self._calculateDropdownPosition();
 
-      if (dropdownPosition && typeof Popper !== 'undefined') {
-        self._popper = new Popper (self._elem, self._dropdownElem, {
-          modifiers: {
-            applyStyle: {enabled: true},
-            applyChiStyle: {
-              enabled: true,
-              fn: self._popperPatchForBottomLeftPropperLocation,
-              order: 890
-            },
+      if (dropdownPosition) {
+        self._popper = {
+          _placement: dropdownPosition,
+          _reference: self._elem,
+          _floating: self._dropdownElem,
+          update() {
+            return computePosition(this._reference, this._floating, {
+              placement: this._placement,
+              middleware: [flip(), shift()],
+            }).then(({x, y}) => {
+              Object.assign(this._floating.style, {
+                position: 'absolute',
+                left: `${x}px`,
+                top: `${y}px`,
+                transform: 'none',
+                willChange: '',
+                right: '',
+              });
+            });
           },
-          placement: dropdownPosition
-        });
+          destroy() {
+            // Clean up inline styles
+            this._floating.style.position = '';
+            this._floating.style.left = '';
+            this._floating.style.top = '';
+            this._floating.style.transform = '';
+            this._floating.style.willChange = '';
+          }
+        };
+        self._popper.update();
       }
     });
   }
 
-  _popperPatchForBottomLeftPropperLocation (data) {
-    data.styles.left = data.styles.left || 'initial';
-    data.styles.right = data.styles.right || 'initial';
-    return data;
-  }
-
   disablePopper () {
-    if (this._popper && typeof this._popper === 'function') {
+    if (this._popper && typeof this._popper === 'object' && this._popper.destroy) {
       this._popper.destroy();
     }
     this._popper = null;
