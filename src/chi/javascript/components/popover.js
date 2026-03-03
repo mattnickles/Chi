@@ -1,6 +1,6 @@
 import { Util } from '../core/util.js';
 import { Component } from '../core/component';
-import { computePosition, flip, shift, offset, arrow as arrowMiddleware } from '@floating-ui/dom';
+import { computePosition, autoUpdate as floatingAutoUpdate, flip, shift, offset, arrow as arrowMiddleware, hide as hideMiddleware } from '@floating-ui/dom';
 import { chi } from '../core/chi';
 
 const COMPONENT_SELECTOR = '[data-popover-content]';
@@ -33,6 +33,7 @@ class Popover extends Component {
 
     this._popoverElem = null;
     this._floatingCleanup = null;
+    this._autoUpdateCleanup = null;
     this._preAnimationTransformStyle = null;
     this._postAnimationTransformStyle = null;
     this._shown = false;
@@ -104,6 +105,7 @@ class Popover extends Component {
     if (!this._config.animate) {
       Util.addClass(this._popoverElem, chi.classes.ACTIVE);
       this._popoverElem.setAttribute('aria-hidden', 'false');
+      this._enableAutoUpdate();
       return;
     }
 
@@ -129,6 +131,7 @@ class Popover extends Component {
           self._popoverElem.dispatchEvent(
             Util.createEvent(EVENTS.shown)
           );
+          self._enableAutoUpdate();
         },
         TRANSITION_DURATION
       );
@@ -141,6 +144,7 @@ class Popover extends Component {
     }
 
     this._shown = false;
+    this._disableAutoUpdate();
     this._elem.dispatchEvent(Util.createEvent(EVENTS.HIDE_DEPRECATED)); // To be removed in Chi 4.0
     this._elem.dispatchEvent(Util.createEvent(EVENTS.HIDE));
 
@@ -219,7 +223,10 @@ class Popover extends Component {
       }
     } else {
       this._popoverElem = document.createElement('section');
-      this._config.parent.parentNode.appendChild(this._popoverElem);
+      // Portal to document.body so position:fixed is always viewport-relative.
+      // Matches CE behavior — avoids ancestors with transforms/filters/overflow
+      // creating an unintended containing block.
+      document.body.appendChild(this._popoverElem);
     }
   }
 
@@ -300,15 +307,27 @@ class Popover extends Component {
         middleware.push(arrowMiddleware({ element: arrowEl }));
       }
 
+      // Hide the popover when the reference scrolls out of the viewport.
+      // Without this, shift() clamps the popover at the viewport edge,
+      // making it appear stuck. With hide(), the popover cleanly disappears.
+      middleware.push(hideMiddleware({ strategy: 'referenceHidden' }));
+
       return computePosition(self._config.parent, self._popoverElem, {
         placement: self._config.position,
+        strategy: 'fixed',
         middleware: middleware,
       }).then(({x, y, placement, middlewareData}) => {
         Object.assign(self._popoverElem.style, {
-          position: 'absolute',
+          position: 'fixed',
           left: `${x}px`,
           top: `${y}px`,
         });
+
+        // Hide popover when reference is scrolled out of view
+        if (middlewareData.hide) {
+          self._popoverElem.style.visibility =
+            middlewareData.hide.referenceHidden ? 'hidden' : '';
+        }
 
         const basePlacement = placement.split('-')[0];
 
@@ -365,6 +384,23 @@ class Popover extends Component {
     this._updatePosition();
   }
 
+  _enableAutoUpdate() {
+    this._disableAutoUpdate();
+    const self = this;
+    this._autoUpdateCleanup = floatingAutoUpdate(
+      self._config.parent,
+      self._popoverElem,
+      function() { self._updatePosition(); }
+    );
+  }
+
+  _disableAutoUpdate() {
+    if (this._autoUpdateCleanup) {
+      this._autoUpdateCleanup();
+      this._autoUpdateCleanup = null;
+    }
+  }
+
   setContent(content) {
     Util.empty(this._popoverElem);
     if (content instanceof Element) {
@@ -375,12 +411,14 @@ class Popover extends Component {
   }
 
   dispose() {
+    this._disableAutoUpdate();
     this._removeEventHandlers();
     if (this._popoverElem && this._popoverElem.parentNode) {
       this._popoverElem.parentNode.removeChild(this._popoverElem);
     }
     this._popoverElem = null;
     this._floatingCleanup = null;
+    this._autoUpdateCleanup = null;
     this._config = null;
     this._preAnimationTransformStyle = null;
     this._postAnimationTransformStyle = null;

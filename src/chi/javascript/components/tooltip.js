@@ -144,7 +144,7 @@ class Tooltip extends Component {
         middleware: [offset(8), flip(), shift()],
       }).then(({x, y}) => {
         Object.assign(self._tooltipElem.style, {
-          position: 'absolute',
+          position: 'fixed',
           left: `${x}px`,
           top: `${y}px`,
         });

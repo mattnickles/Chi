@@ -1,6 +1,6 @@
 import {Component} from "../core/component";
 import {Util} from "../core/util.js";
-import {computePosition, flip, shift} from '@floating-ui/dom';
+import {computePosition, autoUpdate as floatingAutoUpdate, flip, shift, hide as hideMiddleware} from '@floating-ui/dom';
 import {CLASS_HAS_ACTIVE} from "./tab";
 
 const CLASS_ACTIVE = "-active";
@@ -135,22 +135,43 @@ class Dropdown extends Component {
           _placement: dropdownPosition,
           _reference: self._elem,
           _floating: self._dropdownElem,
+          _autoUpdateCleanup: null,
           update() {
             return computePosition(this._reference, this._floating, {
               placement: this._placement,
-              middleware: [flip(), shift()],
-            }).then(({x, y}) => {
+              strategy: 'fixed',
+              middleware: [flip(), shift(), hideMiddleware({ strategy: 'referenceHidden' })],
+            }).then(({x, y, middlewareData}) => {
               Object.assign(this._floating.style, {
-                position: 'absolute',
+                position: 'fixed',
                 left: `${x}px`,
                 top: `${y}px`,
                 transform: 'none',
                 willChange: '',
                 right: '',
               });
+              if (middlewareData.hide) {
+                this._floating.style.visibility = middlewareData.hide.referenceHidden ? 'hidden' : '';
+              }
             });
           },
+          enableAutoUpdate() {
+            this.disableAutoUpdate();
+            const ref = this._reference;
+            const floating = this._floating;
+            const popper = this;
+            this._autoUpdateCleanup = floatingAutoUpdate(
+              ref, floating, function() { popper.update(); }
+            );
+          },
+          disableAutoUpdate() {
+            if (this._autoUpdateCleanup) {
+              this._autoUpdateCleanup();
+              this._autoUpdateCleanup = null;
+            }
+          },
           destroy() {
+            this.disableAutoUpdate();
             // Clean up inline styles
             this._floating.style.position = '';
             this._floating.style.left = '';
@@ -253,6 +274,7 @@ class Dropdown extends Component {
       Util.addClass(this._dropdownElem, CLASS_ACTIVE);
       if (this._popper && typeof this._popper.update === "function") {
         this._popper.update();
+        this._popper.enableAutoUpdate();
       }
       if (this._parentDropdown) {
         this._parentDropdown.show();
@@ -272,6 +294,9 @@ class Dropdown extends Component {
       this._setActiveDescendants();
       Util.removeClass(this._elem, CLASS_ACTIVE);
       Util.removeClass(this._dropdownElem, CLASS_ACTIVE);
+      if (this._popper && typeof this._popper.disableAutoUpdate === "function") {
+        this._popper.disableAutoUpdate();
+      }
       this._shown = false;
       this._childrenDropdowns.forEach(function(dd) {
         dd.hide();
