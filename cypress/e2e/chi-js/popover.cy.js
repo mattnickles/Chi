@@ -28,8 +28,15 @@ describe('Popover', function () {
         cy.get(getValue)
           .find('button.chi-button')
           .should('match', `[data-position="${position}"]`)
+          .click()
           .find('+ .chi-popover')
-          .should('be.visible');
+          .should('be.visible')
+          .should('have.class', '-active');
+
+        // Click the button again to dismiss the popover before next iteration
+        cy.get(getValue)
+          .find('button.chi-button')
+          .click();
       });
     });
   });
