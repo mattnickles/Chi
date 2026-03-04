@@ -11,7 +11,8 @@ const CLASS_COMPONENT = 'chi-dropdown__trigger';
 const COMPONENT_SELECTOR = '.chi-dropdown__trigger';
 const COMPONENT_TYPE = "dropdown";
 const DEFAULT_CONFIG = {
-  popper: true,
+  floating: true,
+  popper: undefined,
   dropdownElem: null
 };
 const DEFAULT_POSITION = "bottom-start";
@@ -24,6 +25,21 @@ class Dropdown extends Component {
 
   constructor (elem, config) {
     super(elem, Util.extend(DEFAULT_CONFIG, config));
+    this._floating = null;
+    Object.defineProperty(this, '_popper', {
+      configurable: true,
+      enumerable: false,
+      get: () => this._floating,
+      set: (value) => {
+        this._floating = value;
+      }
+    });
+
+    if (typeof this._config.floating === 'undefined') {
+      this._config.floating = typeof this._config.popper === 'boolean' ? this._config.popper : true;
+    }
+    this._config.popper = this._config.floating;
+
     this._eventCaptured = false;
     this._shown = Util.hasClass(elem, CLASS_ACTIVE);
     this._childrenDropdowns = [];
@@ -34,8 +50,8 @@ class Dropdown extends Component {
     this._locateDropdown();
     let self = this;
 
-    if (this._config.popper) {
-      this.enablePopper();
+    if (this._config.floating) {
+      this.enableFloating();
     }
 
     this._triggerClickEventListener = function(e) {
@@ -92,6 +108,7 @@ class Dropdown extends Component {
       function (elem) {
         const dropdownElem = elem.nextSibling;
         const config = Util.copyObject(self._config);
+        config.floating = false;
         config.popper = false;
         if (dropdownElem && Util.hasClass(dropdownElem, CLASS_DROPDOWN)) {
           config.dropdownElem = dropdownElem;
@@ -120,18 +137,18 @@ class Dropdown extends Component {
     return dropdownPosition;
   }
 
-  enablePopper () {
-    if (this._popper) {
+  enableFloating () {
+    if (this._floating) {
       return;
     }
 
-    this._popper = 'loading';
+    this._floating = 'loading';
     const self = this;
     window.requestAnimationFrame(function() {
       let dropdownPosition = self._calculateDropdownPosition();
 
       if (dropdownPosition) {
-        self._popper = {
+        self._floating = {
           _placement: dropdownPosition,
           _reference: self._elem,
           _floating: self._dropdownElem,
@@ -159,9 +176,9 @@ class Dropdown extends Component {
             this.disableAutoUpdate();
             const ref = this._reference;
             const floating = this._floating;
-            const popper = this;
+            const floatingInstance = this;
             this._autoUpdateCleanup = floatingAutoUpdate(
-              ref, floating, function() { popper.update(); }
+              ref, floating, function() { floatingInstance.update(); }
             );
           },
           disableAutoUpdate() {
@@ -180,16 +197,24 @@ class Dropdown extends Component {
             this._floating.style.willChange = '';
           }
         };
-        self._popper.update();
+        self._floating.update();
       }
     });
   }
 
-  disablePopper () {
-    if (this._popper && typeof this._popper === 'object' && this._popper.destroy) {
-      this._popper.destroy();
+  enablePopper () {
+    this.enableFloating();
+  }
+
+  disableFloating () {
+    if (this._floating && typeof this._floating === 'object' && this._floating.destroy) {
+      this._floating.destroy();
     }
-    this._popper = null;
+    this._floating = null;
+  }
+
+  disablePopper () {
+    this.disableFloating();
   }
 
   _clickOnTrigger() {
@@ -272,9 +297,9 @@ class Dropdown extends Component {
       Util.addClass(this._elem, CLASS_ACTIVE);
       Util.addClass(this._elem, CLASS_HAS_ACTIVE);
       Util.addClass(this._dropdownElem, CLASS_ACTIVE);
-      if (this._popper && typeof this._popper.update === "function") {
-        this._popper.update();
-        this._popper.enableAutoUpdate();
+      if (this._floating && typeof this._floating.update === "function") {
+        this._floating.update();
+        this._floating.enableAutoUpdate();
       }
       if (this._parentDropdown) {
         this._parentDropdown.show();
@@ -294,8 +319,8 @@ class Dropdown extends Component {
       this._setActiveDescendants();
       Util.removeClass(this._elem, CLASS_ACTIVE);
       Util.removeClass(this._dropdownElem, CLASS_ACTIVE);
-      if (this._popper && typeof this._popper.disableAutoUpdate === "function") {
-        this._popper.disableAutoUpdate();
+      if (this._floating && typeof this._floating.disableAutoUpdate === "function") {
+        this._floating.disableAutoUpdate();
       }
       this._shown = false;
       this._childrenDropdowns.forEach(function(dd) {
@@ -360,7 +385,7 @@ class Dropdown extends Component {
     document.removeEventListener('click', this._documentClickEventListener);
     this._documentClickEventListener = null;
     this._elem = null;
-    this.disablePopper();
+    this.disableFloating();
   }
 
 

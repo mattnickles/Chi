@@ -1,4 +1,4 @@
-import {computePosition, flip, shift, offset} from '@floating-ui/dom';
+import {computePosition, autoUpdate as floatingAutoUpdate, flip, shift, offset, hide as hideMiddleware} from '@floating-ui/dom';
 import {Component} from "../core/component";
 import {Util} from "../core/util.js";
 import {KEYS} from  '../constants/constants';
@@ -7,7 +7,12 @@ const CLASS_ACTIVE = "-active";
 const COMPONENT_SELECTOR = '[data-tooltip]';
 const COMPONENT_TYPE = "tooltip";
 const ANIMATION_DELAY = 300;
-const DEFAULT_CONFIG = {position: 'top', parent: null};
+const DEFAULT_CONFIG = {
+  position: 'top',
+  parent: null,
+  autoUpdate: true,
+  hideWhenDetached: true
+};
 const CLASS_LIGHT = '-light';
 const TOOLTIP_COLOR_ATTRIBUTE = 'data-tooltip-color';
 const TOOLTIP_SWITCH_TIMEOUT = 50;
@@ -100,6 +105,9 @@ class Tooltip extends Component {
         self._tooltipElem.style.transform = self._postAnimationTransformStyle;
         self._tooltipElem.style.opacity = '1';
         self._tooltipElem.setAttribute('aria-hidden', 'false');
+        if (self._config.autoUpdate) {
+          self._enableAutoUpdate();
+        }
         self._preventOverflow();
       });
     });
@@ -110,6 +118,7 @@ class Tooltip extends Component {
 
   hide() {
     this._shown = false;
+    this._disableAutoUpdate();
     Util.removeClass(this._tooltipElem, CLASS_ACTIVE);
     let self = this;
     window.setTimeout(function(){
@@ -139,15 +148,25 @@ class Tooltip extends Component {
     let self = this;
 
     this._updatePosition = function () {
+      const middleware = [offset(8), flip(), shift()];
+      if (self._config.hideWhenDetached) {
+        middleware.push(hideMiddleware({ strategy: 'referenceHidden' }));
+      }
+
       return computePosition(self._config.parent, self._tooltipElem, {
         placement: self._config.position,
-        middleware: [offset(8), flip(), shift()],
-      }).then(({x, y}) => {
+        strategy: 'fixed',
+        middleware,
+      }).then(({x, y, middlewareData}) => {
         Object.assign(self._tooltipElem.style, {
           position: 'fixed',
           left: `${x}px`,
           top: `${y}px`,
         });
+
+        if (self._config.hideWhenDetached && middlewareData.hide) {
+          self._tooltipElem.style.visibility = middlewareData.hide.referenceHidden ? 'hidden' : '';
+        }
 
         // Transforms are relative offsets — left/top handles absolute positioning.
         // Tooltip uses opacity-only animation, so no directional offset needed.
@@ -157,6 +176,22 @@ class Tooltip extends Component {
     };
 
     this._updatePosition();
+  }
+
+  _enableAutoUpdate() {
+    this._disableAutoUpdate();
+    this._floatingCleanup = floatingAutoUpdate(
+      this._config.parent,
+      this._tooltipElem,
+      () => this._updatePosition()
+    );
+  }
+
+  _disableAutoUpdate() {
+    if (this._floatingCleanup) {
+      this._floatingCleanup();
+      this._floatingCleanup = null;
+    }
   }
 
   _preventOverflow() {
@@ -176,6 +211,7 @@ class Tooltip extends Component {
   }
 
   dispose() {
+    this._disableAutoUpdate();
     if (this._tooltipElem && this._tooltipElem.parentNode) {
       this._tooltipElem.parentNode.removeChild(this._tooltipElem);
     }

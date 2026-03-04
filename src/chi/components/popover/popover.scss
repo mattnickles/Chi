@@ -367,58 +367,12 @@
     // Position offsets for left/right start/end placements only.
     // Uses margin-top (not top) to avoid overriding Floating UI's
     // computed inline top value.
-    &.chi-popover--right-start,
-    &.chi-popover--left-start {
-      margin-top: -$popover-gradient-arrow-offset;
-    }
 
-    &.chi-popover--right-end,
-    &.chi-popover--left-end {
-      margin-top: $popover-gradient-arrow-offset;
-    }
-
-    /*
-    Arrow gradient styles — override the arrow background color
-    to match the gradient header/edges per placement direction.
-    Floating UI handles all positioning; CSS only sets the color.
-    */
-
-    // Right side: arrow matches right edge of gradient header
-    &.chi-popover--right,
-    &.chi-popover--right-start,
-    &.chi-popover--right-end {
-      .chi-arrow::before,
-      .chi-popover__arrow::before {
-        background: $popover-gradient-right-arrow-color;
-      }
-    }
-
-    // Left side: arrow matches left edge of gradient header
-    &.chi-popover--left,
-    &.chi-popover--left-start,
-    &.chi-popover--left-end {
-      .chi-arrow::before,
-      .chi-popover__arrow::before {
-        background: $popover-gradient-left-arrow-color;
-      }
-    }
-
-    // Bottom side: arrow uses mixed color (blend of left + right)
-    &.chi-popover--bottom,
-    &.chi-popover--bottom-start,
-    &.chi-popover--bottom-end {
-      .chi-arrow::before,
-      .chi-popover__arrow::before {
-        background: $popover-gradient-arrow-mixed-color;
-      }
-    }
-
-    // Align arrow to gradient for gradient use case
     &.chi-popover--left,
     &.chi-popover--right {
       .chi-arrow,
       .chi-popover__arrow {
-        margin-top: -1.75rem;
+        margin-top: $popover-gradient-arrow-offset;
       }
     }
 
@@ -426,7 +380,45 @@
     &.chi-popover--right-start {
       .chi-arrow,
       .chi-popover__arrow {
-        margin-top: 0.75rem;
+        margin-top: $popover-gradient-arrow-offset;
+      }
+    }
+
+    &.chi-popover--left-end,
+    &.chi-popover--right-end {
+      .chi-arrow,
+      .chi-popover__arrow {
+        margin-top: -$popover-gradient-arrow-offset;
+      }
+    }
+
+
+    // Arrow gradient styles — override the arrow background color
+    // to match the gradient header/edges per placement direction.
+    // Floating UI handles all positioning; CSS only sets the color.
+
+    // Right side: arrow matches right edge of gradient header
+    &.chi-popover--right-start {
+      .chi-arrow::before,
+      .chi-popover__arrow::before {
+        background: $popover-gradient-right-arrow-color;
+      }
+    }
+
+    // Left side: arrow matches left edge of gradient header
+    &.chi-popover--left-start {
+      .chi-arrow::before,
+      .chi-popover__arrow::before {
+        background: $popover-gradient-left-arrow-color;
+      }
+    }
+
+    // Bottom side: arrow uses mixed color (blend of left + right)
+    &.chi-popover--bottom-start,
+    &.chi-popover--bottom {
+      .chi-arrow::before,
+      .chi-popover__arrow::before {
+        background: $popover-gradient-arrow-mixed-color;
       }
     }
   }

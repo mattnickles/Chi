@@ -27,6 +27,21 @@ const DEFAULT_CONFIG = {
   preventAutoHide: false
 };
 
+const PLACEMENT_CLASSES = [
+  'top',
+  'top-start',
+  'top-end',
+  'right',
+  'right-start',
+  'right-end',
+  'bottom',
+  'bottom-start',
+  'bottom-end',
+  'left',
+  'left-start',
+  'left-end',
+];
+
 class Popover extends Component {
   constructor(elem, config) {
     super(elem, Util.extend(DEFAULT_CONFIG, config));
@@ -331,11 +346,14 @@ class Popover extends Component {
 
         const basePlacement = placement.split('-')[0];
 
-        // Update placement class on popover for CSS arrow styling
-        ['top', 'bottom', 'left', 'right'].forEach(function(side) {
+        // Update placement class on popover for CSS styling.
+        // Keep base side class for existing rules and add full placement
+        // class so consumers can target start/end alignments.
+        PLACEMENT_CLASSES.forEach(function(side) {
           Util.removeClass(self._popoverElem, 'chi-popover--' + side);
         });
         Util.addClass(self._popoverElem, 'chi-popover--' + basePlacement);
+        Util.addClass(self._popoverElem, 'chi-popover--' + placement);
 
         // Apply arrow positioning
         if (arrowEl && middlewareData.arrow) {
