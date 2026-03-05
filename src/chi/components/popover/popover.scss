@@ -331,6 +331,13 @@
         width: 4.375rem;
       }
     }
+
+    // Disable open animations when draggable to avoid conflicts with drag movement.
+    &.-animated {
+      &[data-state='open'] {
+        animation: none;
+      }
+    }
   }
 
   &.-gradient {
